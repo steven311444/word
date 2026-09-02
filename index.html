@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>鹦鹉单词 · 艾宾浩斯记忆系统</title>
+<style>
+:root{
+  --blue:#0071e3; --link:#0066cc;
+  --orange:#ff9500; --green:#34c759; --red:#ff3b30; --purple:#af52de; --pink:#ff2d55;
+  --ink:#1d1d1f; --muted:#86868b; --line:#d2d2d7; --bg:#f5f5f7; --card:#fff;
+  --radius-lg:18px; --radius-pill:980px; --shadow:0 4px 20px rgba(0,0,0,.06);
+  --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{font-family:var(--font); background:var(--bg); color:var(--ink); line-height:1.6; -webkit-font-smoothing:antialiased;}
+button{font-family:inherit; cursor:pointer;}
+input,select,textarea{font-family:inherit; font-size:15px;}
+
+/* ============ 登录页（苹果风） ============ */
+#loginScreen{position:fixed; inset:0; z-index:2000; background:#fff; display:flex; flex-direction:column; align-items:center; overflow:auto;}
+.ls-hero{width:100%; min-height:380px; background:radial-gradient(120% 130% at 50% 0%,#1d6fff 0%,#0b4fd6 52%,#0a3ea8 100%); color:#fff; text-align:center; display:flex; flex-direction:column; justify-content:center; align-items:center; padding:72px 24px; position:relative; overflow:hidden;}
+.ls-hero::before{content:""; position:absolute; left:50%; top:-220px; width:720px; height:720px; transform:translateX(-50%); background:radial-gradient(circle,rgba(255,255,255,.16) 0%,transparent 62%); pointer-events:none;}
+.ls-hero h1{font-size:46px; font-weight:700; letter-spacing:-.5px; position:relative; z-index:1;}
+.ls-hero p{font-size:18px; opacity:.9; margin-top:10px; position:relative; z-index:1;}
+.ls-main{width:100%; max-width:420px; padding:36px 20px 60px;}
+.ls-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg); padding:28px; box-shadow:var(--shadow);}
+.ls-card h2{font-size:22px; margin-bottom:6px;}
+.ls-card .sub{color:var(--muted); font-size:14px; margin-bottom:20px;}
+.ls-card input{width:100%; border:1px solid var(--line); border-radius:12px; padding:13px 16px; margin-bottom:12px; font-size:16px; background:#fafafa; transition:border .2s, box-shadow .2s;}
+.ls-card input:focus{outline:none; border-color:var(--blue); box-shadow:0 0 0 4px rgba(0,113,227,.12); background:#fff;}
+.btn-main{width:100%; border:none; border-radius:var(--radius-pill); padding:14px; font-size:17px; font-weight:600; color:#fff; background:var(--blue); margin-top:6px; transition:opacity .2s, transform .15s;}
+.btn-main:hover{opacity:.88;} .btn-main:active{transform:scale(.98);}
+.btn-trial{width:100%; border:1px solid var(--blue); border-radius:var(--radius-pill); padding:12px; font-size:15px; font-weight:600; color:var(--blue); background:#fff; margin-top:10px; transition:opacity .2s, transform .15s;}
+.btn-trial:hover{background:rgba(0,113,227,.06);} .btn-trial:active{transform:scale(.98);}
+.ls-msg{min-height:22px; font-size:13px; color:var(--red); margin-top:10px; text-align:center;}
+.ls-foot{color:var(--muted); font-size:13px; text-align:center; margin-top:16px;}
+
+/* ============ 主界面 ============ */
+header.top{position:sticky; top:0; z-index:100; background:rgba(255,255,255,.85); backdrop-filter:saturate(180%) blur(18px); -webkit-backdrop-filter:saturate(180%) blur(18px); border-bottom:1px solid rgba(0,0,0,.08);}
+.top-inner{max-width:1080px; margin:0 auto; padding:10px 20px; display:flex; align-items:center; gap:12px;}
+.logo{font-weight:700; font-size:18px; letter-spacing:-.2px;}
+.logo b{color:var(--blue);}
+.top-spacer{flex:1;}
+.top-user{font-size:13px; color:var(--muted);}
+.top-btn{border:none; background:var(--blue); color:#fff; border-radius:var(--radius-pill); padding:7px 16px; font-size:13px; font-weight:600;}
+.top-btn.ghost{background:transparent; color:var(--blue); border:1px solid var(--blue);}
+
+nav.tabs{max-width:1080px; margin:0 auto; padding:0 20px; display:flex; gap:4px; overflow-x:auto; border-bottom:1px solid rgba(0,0,0,.06);}
+nav.tabs button{flex:0 0 auto; border:none; background:none; padding:13px 16px; font-size:15px; color:var(--muted); cursor:pointer; border-bottom:3px solid transparent; font-weight:500; white-space:nowrap;}
+nav.tabs button.on{color:var(--blue); border-bottom-color:var(--blue); font-weight:600;}
+
+main{max-width:1080px; margin:0 auto; padding:24px 20px 80px;}
+section.tab-panel{display:none;}
+section.tab-panel.on{display:block;}
+
+.card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg); padding:22px; box-shadow:var(--shadow); margin-bottom:16px;}
+.card h2{font-size:20px; margin-bottom:8px;}
+.card h3{font-size:16px; margin-bottom:8px;}
+.note{color:var(--muted); font-size:13px;}
+.pill{display:inline-block; background:rgba(0,113,227,.10); color:var(--blue); border-radius:8px; padding:2px 9px; font-size:13px; margin:2px 4px 2px 0; font-weight:500;}
+.pill.gray{background:#f0f0f2; color:var(--muted);}
+
+/* 今日学习 */
+.today-hero{background:linear-gradient(135deg,#1d6fff 0%,#0b4fd6 55%,#0a3ea8 100%); color:#fff; border:none; text-align:center;}
+.today-hero h2{font-size:26px;}
+.today-hero .nums{display:flex; justify-content:center; gap:34px; margin:20px 0 6px; flex-wrap:wrap;}
+.today-hero .num{font-size:15px; opacity:.92;}
+.today-hero .num b{display:block; font-size:38px; font-weight:700; opacity:1;}
+.mode-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px;}
+.mode-btn{border:1px solid var(--line); background:#fff; border-radius:16px; padding:18px 14px; text-align:center; transition:transform .15s, box-shadow .2s, border-color .2s;}
+.mode-btn:hover{border-color:var(--blue); box-shadow:var(--shadow); transform:translateY(-2px);}
+.mode-btn .ic{font-size:30px; display:block; margin-bottom:8px;}
+.mode-btn b{display:block; font-size:16px;}
+.mode-btn span{font-size:12px; color:var(--muted); display:block; margin-top:4px;}
+.mode-btn.on{border-color:var(--blue); background:rgba(0,113,227,.06);}
+
+/* 学习器 */
+.study-stage{max-width:620px; margin:0 auto; text-align:center; padding:10px 0;}
+.study-prog{font-size:13px; color:var(--muted); margin-bottom:14px;}
+.flashcard{background:#fff; border:1px solid var(--line); border-radius:24px; min-height:280px; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:30px; box-shadow:var(--shadow); cursor:pointer; user-select:none; transition:transform .12s;}
+.flashcard .fc-word{font-size:44px; font-weight:700; letter-spacing:.5px; word-break:break-word;}
+.flashcard .fc-pos{color:var(--muted); font-size:15px; margin-top:4px;}
+.flashcard .fc-mean{font-size:26px; font-weight:600; margin-top:12px;}
+.fc-word.hidden{filter:blur(8px); pointer-events:none;}
+.fc-spell-input{margin-top:18px; width:100%; max-width:340px; border:2px solid var(--line); border-radius:14px; padding:14px 18px; font-size:22px; text-align:center; letter-spacing:1px; background:#fafafa;}
+.fc-spell-input:focus{outline:none; border-color:var(--blue); background:#fff; box-shadow:0 0 0 4px rgba(0,113,227,.12);}
+.fc-spell-input.ok{border-color:var(--green); background:rgba(52,199,89,.07);}
+.fc-spell-input.no{border-color:var(--red); background:rgba(255,59,48,.06);}
+.fc-result{margin-top:12px; font-size:17px; font-weight:600; min-height:26px;}
+.fc-result.ok{color:var(--green);} .fc-result.no{color:var(--red);}
+.fc-answer{margin-top:6px; font-size:15px; color:var(--muted);}
+.play{display:inline-flex; align-items:center; justify-content:center; border:none; border-radius:50%; background:var(--blue); color:#fff; width:52px; height:52px; cursor:pointer; margin:14px auto 0; box-shadow:0 4px 14px rgba(0,113,227,.35); transition:transform .2s;}
+.play:active{transform:scale(.94);}
+.play svg{width:22px; height:22px;}
+.rate-btns{display:flex; justify-content:center; gap:8px; margin-top:18px; flex-wrap:wrap;}
+.btn{border:none; border-radius:var(--radius-pill); padding:10px 20px; font-size:14px; font-weight:600; margin:4px; transition:opacity .15s, transform .15s;}
+.btn:active{transform:scale(.97);}
+.btn:disabled{opacity:.35; cursor:default;}
+.btn-red{background:#ffd7d6; color:#c92a2a;} .btn-orange{background:#ffe8cc; color:#b25000;}
+.btn-green{background:#d1f2d6; color:#1a7f37;} .btn-blue{background:var(--blue); color:#fff;}
+.btn-gray{background:#e9e9eb; color:var(--ink);} .btn-solid-red{background:var(--red); color:#fff;}
+
+/* 词库 */
+.bank-toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px;}
+.bank-toolbar input[type=search]{flex:1; min-width:200px; border:1px solid var(--line); border-radius:12px; padding:10px 14px; background:#fafafa;}
+.bank-toolbar input[type=search]:focus{outline:none; border-color:var(--blue);}
+.tag-chip{border:1px solid var(--line); background:#fff; border-radius:var(--radius-pill); padding:7px 14px; font-size:13px; color:var(--ink);}
+.tag-chip.on{background:var(--blue); color:#fff; border-color:var(--blue);}
+.tag-card{border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:10px; background:#fff;}
+.tag-card .t-name{font-weight:600; font-size:15px;}
+.tag-card .t-count{color:var(--muted); font-size:13px; margin-left:8px;}
+.tag-card .t-plans{margin-top:4px; font-size:13px; color:var(--muted);}
+.tag-card .t-plans b{color:var(--blue); font-weight:600;}
+.word-row{display:flex; align-items:center; gap:10px; padding:10px 2px; border-bottom:1px solid #f0f0f2; flex-wrap:wrap;}
+.word-row:last-child{border-bottom:none;}
+.word-row .w-word{font-weight:600; font-size:16px; min-width:130px;}
+.word-row .w-pos{color:var(--muted); font-size:13px; min-width:44px;}
+.word-row .w-mean{color:var(--ink); font-size:14px; flex:1; min-width:140px;}
+.word-row .w-tags{display:flex; flex-wrap:wrap;}
+.mini-btn{border:1px solid var(--line); background:#fff; border-radius:8px; padding:3px 9px; font-size:12px; color:var(--blue);}
+.mini-btn.danger{color:var(--red); border-color:#ffd7d6;}
+.empty{color:var(--muted); text-align:center; padding:26px 0;}
+textarea.import-area{width:100%; min-height:130px; border:1px solid var(--line); border-radius:12px; padding:12px; font-family:ui-monospace,Menlo,monospace; font-size:13px; background:#fafafa; resize:vertical;}
+
+/* 计划 */
+.plan-card{border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:14px; background:#fff;}
+.plan-top{display:flex; align-items:flex-start; gap:12px; flex-wrap:wrap;}
+.plan-top h3{font-size:18px; flex:1; min-width:150px;}
+.plan-status{font-size:12px; padding:2px 10px; border-radius:var(--radius-pill);}
+.plan-status.active{background:#d1f2d6; color:#1a7f37;}
+.plan-status.paused{background:#f0f0f2; color:var(--muted);}
+.plan-progress{margin:12px 0 6px;}
+.plan-progress .bar{height:8px; background:#f0f0f2; border-radius:99px; overflow:hidden;}
+.plan-progress .fill{height:100%; background:var(--green); border-radius:99px; transition:width .4s;}
+.plan-acts{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+.plan-meta{font-size:12px; color:var(--muted); margin-top:4px;}
+
+/* 统计（苹果风） */
+.page-head{margin:2px 0 24px;}
+.page-head h1{font-size:34px; font-weight:700; letter-spacing:-.4px; margin:0;}
+.page-head p{color:var(--muted); font-size:15px; margin:6px 0 0;}
+.stat-overview{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:14px;}
+.stat-ov{background:#fff; border:1px solid rgba(0,0,0,.07); border-radius:18px; padding:14px 6px 12px; box-shadow:0 1px 2px rgba(0,0,0,.03); text-align:center; min-width:0;}
+.stat-ov .ic{font-size:19px; line-height:1;}
+.stat-ov .num{font-size:30px; font-weight:700; margin:5px 0 3px; letter-spacing:-.6px; line-height:1;}
+.stat-ov .lbl{font-size:12px; color:var(--muted); display:block; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.stat-ov .num.blue{color:var(--blue);} .stat-ov .num.green{color:var(--green);}
+.stat-ov .num.orange{color:var(--orange);} .stat-ov .num.purple{color:var(--purple);}
+.stats-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.stat-card{background:#fff; border:1px solid rgba(0,0,0,.07); border-radius:20px; padding:22px 24px; box-shadow:0 1px 2px rgba(0,0,0,.03); display:flex; flex-direction:column; min-width:0;}
+.stat-card h3{font-size:17px; font-weight:600; margin:0 0 4px; letter-spacing:-.2px;}
+.stat-card .stat-sub{color:var(--muted); font-size:13px; margin:0 0 14px;}
+.stat-card .chart-body{flex:1; display:flex; align-items:center; justify-content:center;}
+.stat-card .chart-body svg{width:100%; height:auto;}
+.stat-card .donut-box{width:100%; max-width:230px; margin:0 auto;}
+.stat-table{grid-column:1/-1; overflow-x:auto;}
+.legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); justify-content:center; margin-top:12px; padding-bottom:2px;}
+.legend i{display:inline-block; width:10px; height:10px; border-radius:99px; margin-right:5px; vertical-align:-1px;}
+@media (max-width:1000px){
+  .stats-grid{grid-template-columns:1fr;}
+}
+@media (max-width:520px){
+  .stat-overview{gap:8px;}
+  .stat-ov .num{font-size:26px;}
+}
+.legend i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px;}
+table.simple{width:100%; border-collapse:collapse; font-size:13px;}
+table.simple th,table.simple td{padding:8px 10px; border-bottom:1px solid #f0f0f2; text-align:left;}
+table.simple th{color:var(--muted); font-weight:500;}
+
+/* 管理 */
+.user-row{display:flex; align-items:center; gap:12px; padding:10px 2px; border-bottom:1px solid #f0f0f2; flex-wrap:wrap;}
+.user-row .u-name{font-weight:600; min-width:90px;}
+.user-row .u-role{font-size:12px; padding:2px 9px; border-radius:99px;}
+.user-row .u-role.admin{background:#ffe8cc; color:#b25000;}
+.user-row .u-role.student{background:#e3f2fd; color:#0b4fd6;}
+.user-row .u-pwd{font-family:ui-monospace,Menlo,monospace; font-size:13px; color:var(--muted);}
+.u-acts{display:flex; gap:8px; margin-left:auto;}
+.modal-mask{position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; padding:20px;}
+.modal-mask.on{display:flex;}
+.modal{background:#fff; border-radius:20px; max-width:520px; width:100%; padding:26px; max-height:86vh; overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,.25);}
+.modal h3{font-size:19px; margin-bottom:14px;}
+.modal .form-row{margin-bottom:12px;}
+.modal label{display:block; font-size:13px; color:var(--muted); margin-bottom:4px;}
+.modal input[type=text],.modal input[type=password],.modal input[type=number],.modal select{width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px; background:#fafafa;}
+.modal .nb-row input[type=text]{width:auto;}
+.modal input:focus,.modal select:focus{outline:none; border-color:var(--blue); background:#fff;}
+.modal-acts{display:flex; gap:10px; justify-content:flex-end; margin-top:18px;}
+.modal-acts .btn{min-width:80px;}
+.check-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; max-height:220px; overflow:auto;}
+.check-item{display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:13px;}
+.check-item input{accent-color:var(--blue);}
+.toast{position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(80px); background:rgba(28,28,30,.92); color:#fff; padding:11px 22px; border-radius:99px; font-size:14px; z-index:999; transition:transform .3s; pointer-events:none;}
+.toast.on{transform:translateX(-50%) translateY(0);}
+@media (max-width:640px){
+  .ls-hero h1{font-size:34px;}
+  .ls-hero{min-height:300px; padding:50px 20px;}
+  .flashcard{min-height:230px; padding:22px;}
+  .flashcard .fc-word{font-size:34px;}
+  .today-hero .num b{font-size:30px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ 登录页 ============ -->
+<div id="loginScreen">
+  <div class="ls-hero">
+    <h1>🦜 鹦鹉单词</h1>
+    <p>艾宾浩斯记忆系统 · 科学复习 · 记得更牢</p>
+  </div>
+  <div class="ls-main">
+    <div class="ls-card">
+      <h2>登录</h2>
+      <p class="sub">输入账号密码，继续单词学习</p>
+      <input id="lsNick" placeholder="昵称" maxlength="20" autocomplete="username">
+      <input id="lsPwd" type="password" placeholder="密码" maxlength="64" autocomplete="current-password">
+      <button class="btn-main" onclick="doLogin()">登 录</button>
+      <button class="btn-trial" onclick="trialLogin()">🎈 免账号试用</button>
+      <div class="ls-msg" id="lsMsg"></div>
+    </div>
+    <p class="ls-foot">还没有账号？请联系管理员获取</p>
+  </div>
+</div>
+
+<!-- ============ 主界面 ============ -->
+<div id="app" style="display:none">
+  <header class="top">
+    <div class="top-inner">
+      <div class="logo">🦜 <b>鹦鹉</b>单词</div>
+      <div class="top-spacer"></div>
+      <span class="top-user" id="topUser"></span>
+      <button class="top-btn ghost" onclick="doLogout()">退出</button>
+    </div>
+  </header>
+  <nav class="tabs" id="mainTabs">
+    <button data-tab="study" class="on">今日学习</button>
+    <button data-tab="calendar">日期表</button>
+    <button data-tab="bank">词库</button>
+    <button data-tab="plans">计划</button>
+    <button data-tab="stats">统计</button>
+    <button data-tab="admin" id="adminTabBtn" style="display:none">管理</button>
+  </nav>
+  <main>
+
+    <!-- 今日学习 -->
+    <section class="tab-panel on" id="tab-study">
+      <div class="card today-hero">
+        <h2 id="todayTitle">今日学习</h2>
+        <div class="nums">
+          <div class="num"><b id="todayNew">0</b>新词</div>
+          <div class="num"><b id="todayReview">0</b>复习</div>
+          <div class="num"><b id="todayMastered">0</b>已掌握</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>选择学习模式</h3>
+        <p class="note">默认同时推进所有进行中的计划，今日任务自动合并。</p>
+        <div class="mode-grid" id="modeGrid"></div>
+      </div>
+      <div class="card">
+        <div class="study-stage" id="studyStage">
+          <div class="empty">先选择上面的学习模式开始吧</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 日期表 -->
+    <section class="tab-panel" id="tab-calendar">
+      <div class="card">
+        <h2>📅 学习日期表</h2>
+        <p class="note">展示所有进行中计划的排期；点任意日期查看当天单词表（新词/复习与所属计划）。</p>
+        <div class="cal-nav" style="display:flex; align-items:center; gap:10px; margin:12px 0;">
+          <button class="btn btn-gray" onclick="calShift(-31)">← 上月</button>
+          <button class="btn btn-blue" onclick="calGoToday()">回到今天</button>
+          <button class="btn btn-gray" onclick="calShift(31)">下月 →</button>
+          <span class="note" id="calRange"></span>
+        </div>
+        <div id="calGrid"></div>
+      </div>
+      <div class="card" id="calDayCard" style="display:none">
+        <h2 id="calDayTitle"></h2>
+        <div id="calDayTable"></div>
+      </div>
+    </section>
+
+    <!-- 词库 -->
+    <section class="tab-panel" id="tab-bank">
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <h2 style="margin:0;">📚 词库</h2>
+          <select id="bankSel" onchange="onBankChange()" style="flex:1; min-width:220px; max-width:340px; border:1px solid var(--line); border-radius:10px; padding:9px 12px; background:#fafafa;"></select>
+          <button class="btn btn-blue" id="addBankBtn" onclick="openAddBank()">＋ 添加词库</button>
+          <button class="btn btn-gray" id="exportBtn" onclick="exportBank()">📤 导出 CSV</button>
+        </div>
+        <p class="note" style="margin-top:8px">选择上方词库，下方自动展示该词库的单词列表。</p>
+      </div>
+      <div class="card">
+        <h2>单词列表</h2>
+        <div class="bank-toolbar">
+          <input type="search" id="bankSearch" placeholder="搜索英文或中文…" oninput="renderBankList()">
+          <button class="tag-chip" onclick="filterBankStatus('again')">忘了</button>
+          <button class="tag-chip" onclick="filterBankStatus('hard')">不熟</button>
+          <button class="tag-chip" onclick="filterBankStatus('good')">认识</button>
+          <button class="tag-chip" onclick="filterBankStatus('mastered')">掌握</button>
+          <button class="tag-chip" onclick="filterBankStatus('all')">全部</button>
+          <button class="btn btn-blue" id="importBtn" onclick="openImport()">📥 批量导入</button>
+        </div>
+        <div id="bankList"></div>
+      </div>
+    </section>
+
+    <!-- 计划 -->
+    <section class="tab-panel" id="tab-plans">
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <h2 style="flex:1; margin:0;">我的背诵计划</h2>
+          <button class="btn btn-blue" onclick="openNewPlan()">＋ 新建计划</button>
+        </div>
+        <p class="note" style="margin-top:8px">每个计划按艾宾浩斯节奏（第 1/2/4/7/15/30 天复习）独立排期，可同时进行多个计划。</p>
+      </div>
+      <div id="planList"></div>
+    </section>
+
+    <!-- 统计 -->
+    <section class="tab-panel" id="tab-stats">
+      <div class="page-head">
+        <h1>学习统计</h1>
+        <p>看看这段时间的努力与收获</p>
+      </div>
+      <div id="statsGrid"></div>
+    </section>
+
+    <!-- 管理 -->
+    <section class="tab-panel" id="tab-admin">
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <h2 style="flex:1; margin:0;">账号管理</h2>
+          <button class="btn btn-blue" onclick="openNewUser()">＋ 新建账号</button>
+        </div>
+        <p class="note" style="margin-top:8px">系统只有两种账号：学生（学习单词）和管理员（管理词库与账号）。</p>
+      </div>
+      <div class="card">
+        <div id="userList"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- 弹窗容器 -->
+<div class="modal-mask" id="modalMask"><div class="modal" id="modalBox"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= 基础 ================= */
+const API_BASE = (() => {
+  const p = new URLSearchParams(location.search);
+  if (p.get("api")) return p.get("api").replace(/\/+$/, "");
+  const saved = localStorage.getItem("words_api_base");
+  if (saved) return saved.replace(/\/+$/, "");
+  const h = location.hostname;
+  if (h === "localhost" || h === "127.0.0.1") return "http://localhost:8787";
+  return "https://api.study.yuvoralife.com";
+})();
+localStorage.setItem("words_api_base", API_BASE);
+
+let SESSION = null;
+let BANK = [];          // 词库
+let BANKS = [];         // 词库列表（实体）
+let CUR_BANK = null;    // 当前选中的词库 id
+let TAGS = [];          // 标签一览
+let PLANS = [];         // 我的计划
+let STATS = null;
+let CUR_TAB = "study";
+
+// 学习器状态
+let STUDY = { planId: null, mode: null, queue: [], idx: 0, newFirst: [], reviewFirst: [], stats: { new: 0, review: 0, done: 0 } };
+let STUDY_PLAN = null; // 兼容保留（不再用于选择计划，全部计划合并推进）
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function todayCN(){ const d = new Date(); return (d.getMonth()+1) + "月" + d.getDate() + "日"; }
+
+async function api(path, options = {}) {
+  const init = { method: options.method || "GET", credentials: "include", headers: { "content-type": "application/json" } };
+  if (options.body !== undefined) init.body = JSON.stringify(options.body);
+  const res = await fetch(API_BASE + path, init);
+  let body = null;
+  try { body = await res.json(); } catch(e){}
+  return { ok: res.ok, status: res.status, body };
+}
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("on");
+  clearTimeout(t._tm);
+  t._tm = setTimeout(() => t.classList.remove("on"), 2400);
+}
+
+/* ================= 登录 ================= */
+document.getElementById("lsPwd").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+document.getElementById("lsNick").addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+
+async function doLogin(){
+  const nick = $("lsNick").value.trim();
+  const pwd = $("lsPwd").value;
+  const msg = $("lsMsg");
+  if (!nick || !pwd){ msg.textContent = "请输入昵称和密码"; return; }
+  msg.textContent = "登录中…";
+  const r = await api("/api/auth/login", { method: "POST", body: { nickname: nick, password: pwd } });
+  if (!r.ok){ msg.textContent = (r.body && r.body.error) || "登录失败，请稍后重试"; return; }
+  enterApp(r.body.profile);
+}
+const TRIAL_NICK = "试用";
+const TRIAL_PWD = "demo123";
+async function trialLogin(){
+  const msg = $("lsMsg");
+  if (msg) msg.textContent = "正在进入试用…";
+  try {
+    const r = await api("/api/auth/login", { method: "POST", body: { nickname: TRIAL_NICK, password: TRIAL_PWD } });
+    if (!r.ok){ if (msg) msg.textContent = "试用账号暂不可用，请联系管理员"; return; }
+    enterApp(r.body.profile);
+  } catch (e) {
+    if (msg) msg.textContent = "网络异常，请检查网络后重试";
+  }
+}
+function enterApp(profile){
+  SESSION = profile;
+  $("loginScreen").style.display = "none";
+  $("app").style.display = "block";
+  $("topUser").textContent = "已登录：" + SESSION.nickname;
+  const adminBtn = $("adminTabBtn");
+  if (adminBtn) adminBtn.style.display = SESSION.role === "admin" ? "" : "none";
+  // 词库自助导入（添加词库/批量导入/导出）对所有登录用户开放
+  const imp = $("importBtn"), exp = $("exportBtn"), ab = $("addBankBtn");
+  if (imp) imp.style.display = "";
+  if (exp) exp.style.display = "";
+  if (ab) ab.style.display = "";
+  boot();
+}
+async function doLogout(){
+  try { await api("/api/auth/logout", { method: "POST" }); } catch(e){}
+  location.reload();
+}
+
+/* ================= 数据加载 ================= */
+async function boot(){
+  await loadBanks();
+  await Promise.all([loadBank(), loadTags(), loadPlans()]);
+  renderTabs();
+  await loadStats();
+  await refreshToday();
+}
+async function loadBanks(){
+  const r = await api("/api/vocab/banks");
+  BANKS = r.ok ? (r.body.banks || []) : [];
+  const sel = $("bankSel");
+  if (sel){
+    const opts = BANKS.map(b => `<option value="${b.id}">${esc(b.name)}${b.template ? "（模板）" : ""}（${b.count}词）</option>`).join("");
+    sel.innerHTML = opts || `<option value="">（词库为空）</option>`;
+    if (BANKS.length && (!CUR_BANK || !BANKS.some(b => b.id === CUR_BANK))) CUR_BANK = BANKS[0].id;
+    if (BANKS.length) sel.value = CUR_BANK;
+  }
+  if (!BANKS.length) CUR_BANK = null;
+}
+function onBankChange(){
+  CUR_BANK = $("bankSel").value || null;
+  BANK_FILTER_TAG = "";
+  $("bankSearch").value = "";
+  loadBank();
+  loadTags();
+}
+async function loadBank(){
+  const r = await api("/api/vocab/words" + (CUR_BANK ? "?bank=" + encodeURIComponent(CUR_BANK) : ""));
+  BANK = r.ok ? (r.body.words || []) : [];
+  renderBankList();
+}
+async function loadTags(){
+  // 词库标签模块已移除：标签仅作为词库单词列表行内的 Unit 分类展示
+}
+async function loadPlans(){
+  const r = await api("/api/vocab/plans");
+  PLANS = r.ok ? (r.body.plans || []) : [];
+  renderPlans();
+  renderStudyPlanSelect();
+}
+async function loadStats(){
+  const r = await api("/api/vocab/stats");
+  STATS = r.ok ? r.body : null;
+  renderStats();
+}
+
+/* ================= Tab ================= */
+function switchTab(name){
+  CUR_TAB = name;
+  document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  document.querySelectorAll("section.tab-panel").forEach(s => s.classList.toggle("on", s.id === "tab-" + name));
+  if (name === "study") refreshToday();
+  if (name === "admin" && SESSION && SESSION.role === "admin") loadUsers();
+  if (name === "stats") loadStats();
+  if (name === "bank") { loadBank(); loadTags(); }
+  if (name === "plans") loadPlans();
+  if (name === "calendar") loadCalendar();
+}
+function renderTabs(){
+  document.querySelectorAll("nav.tabs button").forEach(b => {
+    b.onclick = () => switchTab(b.dataset.tab);
+  });
+}
+
+/* ================= 今日学习 ================= */
+function renderStudyPlanSelect(){
+  const grid = $("modeGrid");
+  grid.innerHTML = `
+    <button class="mode-btn" data-mode="follow" onclick="startMode('follow')">
+      <span class="ic">🔊</span><b>跟读</b><span>听音跟读，边听边记</span>
+    </button>
+    <button class="mode-btn" data-mode="en2cn" onclick="startMode('en2cn')">
+      <span class="ic">🇬🇧→🇨🇳</span><b>看英背中</b><span>看英文想中文</span>
+    </button>
+    <button class="mode-btn" data-mode="cn2en" onclick="startMode('cn2en')">
+      <span class="ic">🇨🇳→🇬🇧</span><b>看中背英</b><span>看中文拼写英文</span>
+    </button>
+  `;
+  refreshToday();
+}
+
+async function refreshToday(){
+  const r = await api("/api/vocab/today");
+  if (!r.ok) return;
+  const activePlans = PLANS.filter(p => p.status === "active");
+  STUDY.queue = r.body.words || [];
+  STUDY.stats.new = r.body.newCount || 0;
+  STUDY.stats.review = r.body.reviewCount || 0;
+  $("todayTitle").textContent = "今日学习 · " + todayCN();
+  $("todayNew").textContent = r.body.newCount || 0;
+  $("todayReview").textContent = r.body.reviewCount || 0;
+  $("todayMastered").textContent = activePlans.reduce((s, p) => s + (p.mastered || 0), 0);
+  // 若队列变化，重置进行中的学习
+  if (!STUDY.mode) {
+    $("studyStage").innerHTML = `<div class="empty">今日 ${r.body.newCount||0} 个新词 + ${r.body.reviewCount||0} 个复习，选一个模式开始吧</div>`;
+  }
+}
+
+/* ================= 学习器 ================= */
+const MODE_LABEL = { follow: "🔊 跟读", en2cn: "🇬🇧→🇨🇳 看英背中", cn2en: "🇨🇳→🇬🇧 看中背英" };
+
+function speak(text, rate){
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-US";
+    u.rate = rate || 0.85;
+    const voices = speechSynthesis.getVoices();
+    const v = voices.find(x => x.lang && x.lang.toLowerCase().startsWith("en"));
+    if (v) u.voice = v;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  } catch(e){}
+}
+const PLAY_SVG = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+
+function startMode(mode){
+  if (!STUDY.queue.length){ toast("今天没有单词任务，去日期表看看排期吧"); return; }
+  STUDY.mode = mode;
+  STUDY.idx = 0;
+  STUDY.stats.done = 0;
+  STUDY.failCount = {};
+  document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("on", b.dataset.mode === mode));
+  renderFlash();
+}
+
+function curWord(){
+  return STUDY.queue[STUDY.idx];
+}
+
+function renderFlash(){
+  const stage = $("studyStage");
+  const w = curWord();
+  if (!w){
+    stage.innerHTML = `
+      <div class="study-prog">完成 ${STUDY.stats.done} 个</div>
+      <div class="flashcard"><div style="font-size:44px">🎉</div><div style="font-size:22px; font-weight:700; margin-top:10px">今天的词都过完啦！</div><p class="note" style="margin-top:8px">${MODE_LABEL[STUDY.mode]}</p></div>
+      <div class="rate-btns">
+        <button class="btn btn-blue" onclick="location.reload()">完成</button>
+      </div>`;
+    return;
+  }
+  const prog = (STUDY.idx + 1) + " / " + STUDY.queue.length;
+  const kind = w.kind === "new" ? "🆕 新词" : "🔁 复习";
+  if (STUDY.mode === "follow"){
+    stage.innerHTML = `
+      <div class="study-prog">${kind} · ${prog}</div>
+      <div class="flashcard" onclick="speak('${esc(String(w.word).replace(/'/g,"\\'"))}')">
+        <div class="fc-word">${esc(w.word)}</div>
+        <div class="fc-pos">${esc(w.pos)}</div>
+        <div class="fc-mean">${esc(w.mean)}</div>
+      </div>
+      <button class="play" onclick="speak('${esc(String(w.word).replace(/'/g,"\\'"))}')">${PLAY_SVG}</button>
+      <div class="rate-btns">
+        <button class="btn btn-red" onclick="rate('again','follow')">忘了 🔁</button>
+        <button class="btn btn-orange" onclick="rate('hard','follow')">不熟 😐</button>
+        <button class="btn btn-green" onclick="rate('good','follow')">认识 ✅</button>
+        <button class="btn btn-blue" onclick="rate('easy','follow')">太简单 ⚡</button>
+      </div>`;
+    setTimeout(() => speak(w.word), 180);
+  } else if (STUDY.mode === "en2cn"){
+    stage.innerHTML = `
+      <div class="study-prog">${kind} · ${prog} · 先想中文，再点卡片翻面</div>
+      <div class="flashcard" id="fcEn2cn" onclick="flipEn2cn()">
+        <div class="fc-word">${esc(w.word)}</div>
+        <div class="fc-pos">${esc(w.pos)}</div>
+        <div class="fc-mean" id="fcEn2cnMean" style="display:none">${esc(w.mean)}</div>
+      </div>
+      <button class="play" onclick="speak('${esc(String(w.word).replace(/'/g,"\\'"))}')">${PLAY_SVG}</button>
+      <div class="rate-btns" id="en2cnRates" style="opacity:.4; pointer-events:none;">
+        <button class="btn btn-red" onclick="rate('again','en2cn')">忘了 🔁</button>
+        <button class="btn btn-orange" onclick="rate('hard','en2cn')">不熟 😐</button>
+        <button class="btn btn-green" onclick="rate('good','en2cn')">认识 ✅</button>
+        <button class="btn btn-blue" onclick="rate('easy','en2cn')">太简单 ⚡</button>
+      </div>`;
+  } else if (STUDY.mode === "cn2en"){
+    stage.innerHTML = `
+      <div class="study-prog">${kind} · ${prog} · 看中文，输入英文拼写</div>
+      <div class="flashcard">
+        <div class="fc-pos">${esc(w.pos)}</div>
+        <div class="fc-mean">${esc(w.mean)}</div>
+        <input class="fc-spell-input" id="spellInput" placeholder="输入英文单词…" autocomplete="off" autocapitalize="off" spellcheck="false" onkeydown="if(event.key==='Enter')checkSpell()">
+        <div class="fc-result" id="spellResult"></div>
+        <div class="fc-answer" id="spellAnswer"></div>
+      </div>
+      <div class="rate-btns">
+        <button class="btn btn-blue" onclick="checkSpell()">✓ 检查</button>
+      </div>`;
+    setTimeout(() => $("spellInput").focus(), 60);
+  }
+}
+
+function flipEn2cn(){
+  const mean = $("fcEn2cnMean");
+  const rates = $("en2cnRates");
+  if (!mean || !rates) return;
+  if (mean.style.display === "none"){
+    mean.style.display = "block";
+    rates.style.opacity = "1";
+    rates.style.pointerEvents = "auto";
+  }
+}
+
+function checkSpell(){
+  const w = curWord();
+  const input = $("spellInput");
+  if (!w || !input) return;
+  const ans = String(w.word || "").trim().toLowerCase();
+  const got = input.value.trim().toLowerCase().replace(/[，。！？、]/g, "");
+  const ok = got === ans;
+  input.classList.remove("ok", "no");
+  input.classList.add(ok ? "ok" : "no");
+  input.disabled = true;
+  const res = $("spellResult");
+  const ansEl = $("spellAnswer");
+  speak(w.word);
+  const buttons = document.querySelector("#studyStage .rate-btns");
+  if (ok) {
+    // 拼写正确 → 自动打"认识"
+    res.className = "fc-result ok";
+    res.textContent = "✓ 完全正确（已标为认识）";
+    ansEl.innerHTML = "";
+    buttons.innerHTML = `<button class="btn btn-green">自动评分中…</button>`;
+    setTimeout(() => rate("good", "cn2en"), 600);
+  } else {
+    // 拼错 → 当天第 1 次标"不熟"，第 2 次起标"忘了"
+    STUDY.failCount[w.id] = (STUDY.failCount[w.id] || 0) + 1;
+    const n = STUDY.failCount[w.id];
+    const rating = n >= 2 ? "again" : "hard";
+    res.className = "fc-result no";
+    res.textContent = n >= 2 ? `✗ 这是今天第 ${n} 次拼错（已标为忘了）` : `✗ 不对哦（已标为不熟，第 ${n} 次）`;
+    ansEl.innerHTML = `正确答案：<b>${esc(w.word)}</b>（${esc(w.pos)}）`;
+    buttons.innerHTML = `<button class="btn btn-orange">自动评分中…</button>`;
+    setTimeout(() => rate(rating, "cn2en"), 900);
+  }
+}
+
+async function rate(rating, mode){
+  const w = curWord();
+  if (!w) return;
+  const r = await api("/api/vocab/review", { method: "POST", body: { word_id: w.id, rating, mode } });
+  if (!r.ok){ toast((r.body && r.body.error) || "保存失败"); return; }
+  STUDY.stats.done++;
+  if (rating === "again" || rating === "hard") w.kind = "again";
+  STUDY.idx++;
+  if (STUDY.idx >= STUDY.queue.length){
+    STUDY.queue = [];
+    renderFlash();
+    await Promise.all([loadPlans(), loadStats()]);
+    return;
+  }
+  renderFlash();
+}
+
+/* ================= 词库 ================= */
+function fmtUnit(t){
+  if (t === "0") return "Starter";
+  return "Unit " + t;
+}
+function unitOrder(t){
+  return t === "0" ? -1 : parseInt(t, 10) || 99;
+}
+function renderTags(){
+  // 标签模块已移除
+}
+
+let BANK_FILTER_TAG = "";
+function filterBank(tag){
+  BANK_FILTER_TAG = BANK_FILTER_TAG === tag ? "" : tag;
+  $("bankSearch").value = "";
+  renderBankList();
+  switchTab("bank");
+}
+
+function renderBankList(){
+  const box = $("bankList");
+  const q = ($("bankSearch").value || "").trim().toLowerCase();
+  let list = BANK.slice();
+  if (BANK_FILTER_TAG) list = list.filter(w => w.tags.includes(BANK_FILTER_TAG));
+  if (BANK_STATUS !== "all") list = list.filter(w => (w.status || "untouched") === BANK_STATUS);
+  if (q) list = list.filter(w => (w.word || "").toLowerCase().includes(q) || (w.mean || "").includes(q));
+  if (!list.length){
+    box.innerHTML = `<div class="empty">${BANK.length ? "没有匹配的单词" : "词库为空，点右上角「批量导入」添加单词"}</div>`;
+    return;
+  }
+  const curBankObj = BANKS.find(b => b.id === CUR_BANK) || {};
+  const canManage = (SESSION && SESSION.role === "admin") || (SESSION && curBankObj.owner_id === SESSION.id);
+  const planNames = {};
+  PLANS.forEach(p => { planNames[p.id] = p.name; });
+  const STATUS_CN = { untouched: "未学", again: "忘了", hard: "不熟", good: "认识", mastered: "掌握" };
+  const STATUS_CLS = { untouched: "pill gray", again: "pill", hard: "pill", good: "pill", mastered: "pill" };
+  box.innerHTML = list.map(w => {
+    const inPlans = PLANS.filter(p => p.tags.some(t => w.tags.includes(t))).map(p => p.name);
+    const st = w.status || "untouched";
+    const unitTags = (w.tags || []).filter(t => /^\d+$/.test(t)).sort((a, b) => unitOrder(a) - unitOrder(b));
+    return `<div class="word-row">
+      <button class="play" style="width:34px; height:34px; margin:0;" onclick="speak('${esc(String(w.word).replace(/'/g,"\\'"))}')">${PLAY_SVG}</button>
+      <span class="w-word">${esc(w.word)}</span>
+      <span class="w-pos">${esc(w.pos)}</span>
+      <span class="w-mean">${esc(w.mean)}</span>
+      <span class="w-tags">${unitTags.map(t => `<span class="pill">${esc(fmtUnit(t))}</span>`).join("")}</span>
+      <span class="pill ${STATUS_CLS[st]}" style="${st==='again'?'background:#ffe3e3;color:#c92a2a':st==='hard'?'background:#fff3e0;color:#b25000':st==='good'?'background:#e6f7ec;color:#1a7f37':st==='mastered'?'background:#d1f2d6;color:#1a7f37':''}">状态：${STATUS_CN[st] || st}</span>
+      ${inPlans.length ? `<span class="pill gray">计划：${inPlans.map(esc).join("、")}</span>` : ""}
+      ${canManage ? `<span class="u-acts"><button class="mini-btn" onclick="openEditWord('${w.id}')">编辑</button><button class="mini-btn danger" onclick="delWord('${w.id}')">删除</button></span>` : ""}
+    </div>`;
+  }).join("");
+}
+
+// 词库状态筛选（认识/不熟/忘了/掌握/全部）
+let BANK_STATUS = "all";
+function filterBankStatus(st){
+  BANK_STATUS = BANK_STATUS === st ? "all" : st;
+  renderBankList();
+}
+
+// ===== 添加词库（新词库：手动逐词添加 或 固定格式导入）=====
+function openAddBank(){
+  if (!SESSION){ toast("请先登录"); return; }
+  openModal(`
+    <h3>＋ 添加新词库</h3>
+    <div class="form-row"><label>词库名称</label><input type="text" id="nbName" placeholder="如：2027年秋六年级英语上"></div>
+
+    <div class="form-row"><label>方式一：逐个添加单词</label>
+      <div id="nbRows"></div>
+      <button class="btn btn-gray" onclick="addBankRow()">＋ 再添一个单词</button>
+    </div>
+
+    <div class="form-row"><label>方式二：固定格式批量导入</label>
+      <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
+        <button class="btn btn-gray" onclick="downloadBankTemplate()">📥 下载 CSV 模板</button>
+        <span class="note">格式：英文,词性,中文释义,标签（标签可留空）</span>
+      </div>
+      <textarea class="import-area" id="nbText" placeholder="apple, n., 苹果,&#10;banana, n., 香蕉,&#10;也可点模板下载后按格式填写，再上传文件"></textarea>
+      <input type="file" id="nbFile" accept=".txt,.csv,text/plain,text/csv" style="margin-top:8px;">
+    </div>
+
+    <div class="modal-acts">
+      <button class="btn btn-gray" onclick="closeModal()">取消</button>
+      <button class="btn btn-blue" onclick="doAddBank()">创建词库</button>
+    </div>`);
+  addBankRow();
+}
+
+function addBankRow(){
+  const box = $("nbRows");
+  if (!box) return;
+  const row = document.createElement("div");
+  row.className = "nb-row";
+  row.style.cssText = "display:flex; gap:6px; margin-bottom:6px;";
+  row.innerHTML = `
+    <input type="text" class="nbWord" placeholder="英文" style="flex:2; min-width:80px;">
+    <input type="text" class="nbPos" placeholder="词性" style="flex:1; min-width:50px;">
+    <input type="text" class="nbMean" placeholder="中文释义" style="flex:3; min-width:100px;">`;
+  box.appendChild(row);
+}
+
+function downloadBankTemplate(){
+  const csv = "\uFEFF英文,词性,中文释义,标签\napple,n.,苹果,\nbrave,adj.,勇敢的,\n";
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "词库导入模板.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function doAddBank(){
+  const bankName = $("nbName").value.trim();
+  if (!bankName){ toast("请填写词库名称"); return; }
+  let items = [];
+  // 收集手动逐词输入
+  document.querySelectorAll(".nb-row").forEach(row => {
+    const word = (row.querySelector(".nbWord").value || "").trim();
+    const pos = (row.querySelector(".nbPos").value || "").trim();
+    const mean = (row.querySelector(".nbMean").value || "").trim();
+    if (word && mean) items.push({ word, pos, mean });
+  });
+  // 收集粘贴/上传（固定格式）
+  const text = $("nbText").value;
+  const file = $("nbFile").files[0];
+  if (text || file){
+    const src = file ? await file.text() : text;
+    const parsed = parseImport(src);
+    items = items.concat(parsed);
+  }
+  if (!items.length){ toast("请至少添加一个单词（逐词填写或粘贴/上传）"); return; }
+  const r = await api("/api/vocab/words/import", { method: "POST", body: { items, bank_name: bankName } });
+  if (!r.ok){ toast((r.body && r.body.error) || "创建失败"); return; }
+  closeModal();
+  toast(`词库「${bankName}」已创建：${items.length} 词（新增 ${r.body.added}，合并 ${r.body.updated}）`);
+  await loadBanks();
+  const nb = BANKS.find(b => b.name === bankName);
+  CUR_BANK = nb ? nb.id : (BANKS[0] && BANKS[0].id);
+  if ($("bankSel") && CUR_BANK) $("bankSel").value = CUR_BANK;
+  await Promise.all([loadBank(), loadTags(), loadPlans()]);
+}
+
+function openImport(){
+  if (!SESSION){ toast("请先登录"); return; }
+  const curName = CUR_BANK && BANKS.find(b => b.id === CUR_BANK) ? BANKS.find(b => b.id === CUR_BANK).name : "";
+  openModal(`
+    <h3>📥 批量导入单词</h3>
+    <div class="form-row">
+      <label>导入到词库（填名称；不存在会自动新建）</label>
+      <input type="text" id="importBank" value="${esc(curName)}" placeholder="如：2026年秋五年级英语上">
+    </div>
+    <div class="form-row">
+      <label>粘贴词库（每行一个：英文, 中文）或上传 CSV 文件</label>
+      <textarea class="import-area" id="importText" placeholder="abandon, v., 放弃&#10;ability, n., 能力&#10;absent, adj., 缺席的&#10;&#10;也支持：英文 中文（空格/制表符分隔）"></textarea>
+    </div>
+    <div class="form-row">
+      <label>导入到标签（可多选，用逗号分隔，如：五年级,课外）</label>
+      <input type="text" id="importTags" placeholder="五年级,课外拓展">
+    </div>
+    <div class="form-row">
+      <label>或上传 .txt / .csv 文件</label>
+      <input type="file" id="importFile" accept=".txt,.csv,text/plain,text/csv">
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-gray" onclick="closeModal()">取消</button>
+      <button class="btn btn-blue" onclick="doImport()">导入</button>
+    </div>`);
+}
+
+function parseImport(text){
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const out = [];
+  const POSLIKE = /^(n\.|v\.|adj\.|adv\.|pron\.|conj\.|prep\.|num\.|art\.|aux\.|int\.|abbr\.|序数词|短语)$/;
+  for (const line of lines){
+    if (line.startsWith("#")) continue;
+    if (/^英文[,\t，]/.test(line)) continue; // 跳过 CSV 表头
+    let word = "", pos = "", mean = "", tags = [];
+    if (line.includes("\t")){
+      const p = line.split("\t");
+      word = p[0].trim(); mean = (p[1] || "").trim(); pos = (p[2] || "").trim();
+    } else if (line.includes(",")){
+      const p = line.split(",");
+      word = p[0].trim();
+      if (POSLIKE.test((p[1] || "").trim())){
+        // 格式：英文, 词性, 中文[, 标签]
+        pos = p[1].trim();
+        mean = (p[2] || "").trim();
+        if (p[3]) tags = p[3].split(/[|，,]/).map(t => t.trim()).filter(Boolean);
+      } else {
+        // 格式：英文, 中文[, 词性]
+        mean = (p[1] || "").trim();
+        pos = (p[2] || "").trim();
+      }
+    } else {
+      const m = line.match(/^([A-Za-z][A-Za-z\s'\-]*?)\s+([\u4e00-\u9fa5].*)$/);
+      if (!m) continue;
+      word = m[1].trim(); mean = m[2].trim();
+    }
+    if (!word || !mean) continue;
+    const it = { word, mean, pos };
+    if (tags.length) it.tags = tags;
+    out.push(it);
+  }
+  return out;
+}
+
+async function doImport(){
+  let items = [];
+  const text = $("importText").value;
+  const file = $("importFile").files[0];
+  const tagStr = $("importTags").value.trim();
+  const tags = tagStr ? tagStr.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
+  const bankName = $("importBank").value.trim();
+  if (!text && !file){ toast("请粘贴内容或选择文件"); return; }
+  if (!bankName){ toast("请填写词库名称"); return; }
+  if (file){
+    const txt = await file.text();
+    items = parseImport(txt);
+  } else {
+    items = parseImport(text);
+  }
+  if (!items.length){ toast("没有解析出有效单词，请检查格式"); return; }
+  items.forEach(it => { if (tags.length) it.tags = tags; });
+  const r = await api("/api/vocab/words/import", { method: "POST", body: { items, bank_name: bankName } });
+  if (!r.ok){ toast((r.body && r.body.error) || "导入失败"); return; }
+  closeModal();
+  toast(`导入成功：新增 ${r.body.added} 个，更新 ${r.body.updated} 个`);
+  await loadBanks();
+  CUR_BANK = BANKS.find(b => b.name === bankName) ? BANKS.find(b => b.name === bankName).id : (BANKS[0] && BANKS[0].id);
+  if ($("bankSel") && CUR_BANK) $("bankSel").value = CUR_BANK;
+  await Promise.all([loadBank(), loadTags(), loadPlans()]);
+}
+
+async function exportBank(){
+  try {
+    const res = await fetch(API_BASE + "/api/vocab/words/export", { credentials: "include" });
+    if (!res.ok) throw new Error();
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "vocab_export.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch(e){ toast("导出失败"); }
+}
+
+function openEditWord(id){
+  const w = BANK.find(x => x.id === id);
+  if (!w) return;
+  openModal(`
+    <h3>编辑单词</h3>
+    <div class="form-row"><label>英文</label><input type="text" id="ewWord" value="${esc(w.word)}"></div>
+    <div class="form-row"><label>词性</label><input type="text" id="ewPos" value="${esc(w.pos)}"></div>
+    <div class="form-row"><label>中文释义</label><input type="text" id="ewMean" value="${esc(w.mean)}"></div>
+    <div class="form-row"><label>标签（逗号分隔）</label><input type="text" id="ewTags" value="${esc(w.tags.join(","))}"></div>
+    <div class="modal-acts">
+      <button class="btn btn-gray" onclick="closeModal()">取消</button>
+      <button class="btn btn-blue" onclick="saveWord('${id}')">保存</button>
+    </div>`);
+}
+async function saveWord(id){
+  const r = await api("/api/vocab/words/" + id, { method: "PUT", body: {
+    word: $("ewWord").value.trim(),
+    pos: $("ewPos").value.trim(),
+    mean: $("ewMean").value.trim(),
+    tags: $("ewTags").value.split(/[,，]/).map(t => t.trim()).filter(Boolean),
+  }});
+  if (!r.ok){ toast((r.body && r.body.error) || "保存失败"); return; }
+  closeModal();
+  toast("已保存");
+  await Promise.all([loadBank(), loadTags(), loadPlans()]);
+}
+async function delWord(id){
+  if (!confirm("确定删除这个单词吗？相关计划记录也会一并移除。")) return;
+  const r = await api("/api/vocab/words/" + id, { method: "DELETE" });
+  if (!r.ok){ toast((r.body && r.body.error) || "删除失败"); return; }
+  toast("已删除");
+  await Promise.all([loadBank(), loadTags(), loadPlans()]);
+}
+
+/* ================= 计划 ================= */
+function renderPlans(){
+  const box = $("planList");
+  if (!PLANS.length){
+    box.innerHTML = `<div class="card"><div class="empty">还没有背诵计划，点右上角「新建计划」开始吧</div></div>`;
+    return;
+  }
+  box.innerHTML = PLANS.map(p => {
+    const pct = p.total ? Math.round(p.mastered / p.total * 100) : 0;
+    const statusTxt = p.status === "active" ? "进行中" : "已暂停";
+    return `<div class="plan-card">
+      <div class="plan-top">
+        <h3>${esc(p.name)}</h3>
+        <span class="plan-status ${p.status}">${statusTxt}</span>
+      </div>
+      <div class="plan-meta">${p.tags.map(t => `<span class="pill">${esc(t)}</span>`).join("")} 每日新词 ${p.daily_new} 个 · 共 ${p.total} 词 · 已学 ${p.learned} · 掌握 ${p.mastered}</div>
+      <div class="plan-progress"><div class="bar"><div class="fill" style="width:${pct}%"></div></div></div>
+      <div class="plan-acts">
+        <button class="btn btn-blue" onclick="studyThisPlan('${p.id}')">▶ 去学习</button>
+        <button class="btn ${p.status === 'active' ? 'btn-gray' : 'btn-green'}" onclick="togglePlan('${p.id}','${p.status === 'active' ? 'paused' : 'active'}')">${p.status === 'active' ? '⏸ 暂停' : '▶ 恢复'}</button>
+        <button class="btn btn-solid-red" onclick="delPlan('${p.id}')">删除</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function studyThisPlan(id){
+  STUDY = { planId: null, mode: null, queue: [], idx: 0, stats: { new: 0, review: 0, done: 0 } };
+  refreshToday().then(() => switchTab("study"));
+}
+
+async function togglePlan(id, status){
+  const r = await api("/api/vocab/plans/" + id, { method: "PUT", body: { status } });
+  if (!r.ok){ toast((r.body && r.body.error) || "操作失败"); return; }
+  toast(status === "paused" ? "已暂停计划" : "已恢复计划");
+  await Promise.all([loadPlans(), loadStats()]);
+}
+async function delPlan(id){
+  if (!confirm("确定删除这个计划吗？学习记录不会删除，但排期会移除。")) return;
+  const r = await api("/api/vocab/plans/" + id, { method: "DELETE" });
+  if (!r.ok){ toast((r.body && r.body.error) || "删除失败"); return; }
+  toast("已删除计划");
+  await Promise.all([loadPlans(), loadStats(), refreshToday()]);
+}
+
+function openNewPlan(){
+  if (!BANKS.length){ toast("词库为空，请先导入词库"); return; }
+  const selCur = CUR_BANK || (BANKS[0] && BANKS[0].id);
+  openModal(`
+    <h3>新建背诵计划</h3>
+    <div class="form-row"><label>计划名称</label><input type="text" id="npName" placeholder="如：期中复习计划"></div>
+    <div class="form-row"><label>选择词库</label>
+      <select id="npBank">${BANKS.map(b => `<option value="${b.id}" ${b.id === selCur ? "selected" : ""}>${esc(b.name)}（${b.count}词）</option>`).join("")}</select>
+    </div>
+    <p class="note" style="margin-bottom:12px">将包含所选词库的全部单词（共 <b id="npCount"></b> 词），标签仅作词库分类展示。</p>
+    <div class="form-row"><label>每日新词数（5–15）</label>
+      <input type="number" id="npDaily" min="5" max="15" step="1" value="10" style="width:120px;">
+      <div class="note" style="margin-top:4px">5 = 轻松 · 10 = 推荐 · 15 = 挑战，可填中间任意数字</div>
+    </div>
+    <div class="form-row"><label>按掌握状态筛选（可选）</label><select id="npStatus"><option value="all">全部单词</option><option value="again">只背「忘了」的词</option><option value="hard">只背「不熟」的词</option><option value="good">只背「认识」的词</option><option value="mastered">只背「掌握」的词</option></select></div>
+    <div class="form-row"><label>复习节奏（固定艾宾浩斯）</label><div class="note">第 1 / 2 / 4 / 7 / 15 / 30 天各复习一次</div></div>
+    <div class="modal-acts">
+      <button class="btn btn-gray" onclick="closeModal()">取消</button>
+      <button class="btn btn-blue" onclick="createPlan()">生成计划</button>
+    </div>`);
+  const nb = $("npCount");
+  if (nb){
+    const bid = $("npBank").value;
+    const sel = BANKS.find(b => b.id === bid);
+    nb.textContent = sel ? sel.count : "0";
+  }
+}
+async function createPlan(){
+  const name = $("npName").value.trim();
+  const bankId = $("npBank").value;
+  const daily = parseInt($("npDaily").value, 10);
+  const statusFilter = $("npStatus").value;
+  if (!name){ toast("请填写计划名称"); return; }
+  if (!bankId){ toast("请选择词库"); return; }
+  if (!daily || daily < 5 || daily > 15){ toast("每日新词数请在 5–15 之间"); return; }
+  const r = await api("/api/vocab/plans", { method: "POST", body: { name, bank_id: bankId, tags: [], daily_new: daily, status_filter: statusFilter } });
+  if (!r.ok){ toast((r.body && r.body.error) || "创建失败"); return; }
+  closeModal();
+  toast(`计划已生成：${r.body.count} 个单词`);
+  await Promise.all([loadPlans(), loadStats()]);
+}
+
+/* ================= 统计 ================= */
+let CAL_DAYS = [];
+let CAL_CURSOR = "";
+
+async function loadCalendar(){
+  const r = await api("/api/vocab/calendar");
+  CAL_DAYS = r.ok ? (r.body.days || []) : [];
+  if (!CAL_CURSOR){
+    const today = new Date();
+    const key = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+    CAL_CURSOR = key;
+  }
+  renderCalendar();
+}
+
+function calShift(days){
+  const d = new Date(CAL_CURSOR + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  CAL_CURSOR = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  renderCalendar();
+}
+function calGoToday(){
+  const d = new Date();
+  CAL_CURSOR = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  renderCalendar();
+}
+
+function renderCalendar(){
+  const grid = $("calGrid");
+  if (!CAL_DAYS.length){
+    grid.innerHTML = `<div class="empty">暂无进行中的计划，去「计划」页新建一个吧</div>`;
+    return;
+  }
+  // 以 cursor 所在月为中心，渲染前后 45 天（共 3 个月跨度）
+  const base = new Date(CAL_CURSOR + "T00:00:00");
+  const start = new Date(base);
+  start.setDate(start.getDate() - 15);
+  const endD = new Date(start);
+  endD.setDate(start.getDate() + 44);
+  const today = new Date();
+  const todayKey = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+  const dayByKey = {};
+  CAL_DAYS.forEach(d => { dayByKey[d.date] = d; });
+
+  let html = `<div style="display:grid; grid-template-columns:repeat(7,1fr); gap:6px;">`;
+  for (let i = 0; i < 45; i++){
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const info = dayByKey[key];
+    const wd = d.getDay();
+    const isWeekend = wd === 0 || wd === 6;
+    const isToday = key === todayKey;
+    const isCursor = key === CAL_CURSOR;
+    const count = info ? info.words.length : 0;
+    html += `<button onclick="calPick('${key}')" style="min-height:56px; border:1px solid ${isCursor ? 'var(--blue)' : 'var(--line)'}; border-radius:12px; background:${isToday ? 'rgba(0,113,227,.10)' : '#fff'}; padding:6px; font-size:12px; display:flex; flex-direction:column; align-items:flex-start; gap:2px; ${isWeekend ? 'background:#fafafa' : ''}">
+      <span style="font-weight:${isToday ? '700' : '500'}; color:${isToday ? 'var(--blue)' : 'var(--ink)'}">${d.getMonth()+1}/${d.getDate()}</span>
+      ${count ? `<span style="color:var(--blue); font-weight:600; font-size:11px;">${count} 词</span>` : `<span style="color:#d2d2d7; font-size:11px;">—</span>`}
+    </button>`;
+  }
+  html += `</div>`;
+  grid.innerHTML = html;
+  const range = `${start.getMonth()+1}/${start.getDate()} ~ ${endD.getMonth()+1}/${endD.getDate()}`;
+  $("calRange").textContent = range;
+  calPick(CAL_CURSOR);
+}
+
+function calPick(key){
+  CAL_CURSOR = key;
+  const info = CAL_DAYS.find(d => d.date === key);
+  const card = $("calDayCard");
+  const title = $("calDayTitle");
+  const tbody = $("calDayTable");
+  card.style.display = "block";
+  const today = new Date();
+  const todayKey = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+  title.textContent = `📖 ${key} 当天单词${key === todayKey ? "（今天）" : ""}`;
+  if (!info || !info.words.length){
+    tbody.innerHTML = `<div class="empty">这天没有单词任务</div>`;
+    return;
+  }
+  const STATUS_CN = { untouched: "未学", again: "忘了", hard: "不熟", good: "认识", mastered: "掌握" };
+  tbody.innerHTML = `<table class="simple">
+    <tr><th>类型</th><th>英文</th><th>词性</th><th>中文</th><th>计划</th><th>状态</th></tr>
+    ${info.words.map(w => `<tr>
+      <td>${w.kind === "new" ? "🆕 新词" : "🔁 复习"}</td>
+      <td><b>${esc(w.word)}</b></td>
+      <td>${esc(w.pos)}</td>
+      <td>${esc(w.mean)}</td>
+      <td><span class="pill">${esc(w.plan)}</span></td>
+      <td>${STATUS_CN[w.status] || "未学"}</td>
+    </tr>`).join("")}
+  </table>`;
+}
+
+function renderStats(){
+  const box = $("statsGrid");
+  if (!STATS){
+    box.innerHTML = `<div class="empty">暂无统计数据</div>`;
+    return;
+  }
+  const d = STATS.daily || [];
+  const don = STATS.donut || { total: 0, mastered: 0, learning: 0, untouched: 0 };
+  const plans = STATS.plans || [];
+  const activeCount = plans.filter(p => p.status === "active").length;
+  const todayNew = parseInt(($("todayNew") || {}).textContent || "0", 10) || 0;
+  const todayReview = parseInt(($("todayReview") || {}).textContent || "0", 10) || 0;
+  const donutPct = don.total ? Math.round(don.mastered / don.total * 100) : 0;
+  box.innerHTML = `
+    <div class="stat-overview">
+      <div class="stat-ov">
+        <div class="ic">📅</div>
+        <div class="num blue">${todayNew + todayReview}</div>
+        <span class="lbl">今日任务</span>
+      </div>
+      <div class="stat-ov">
+        <div class="ic">✅</div>
+        <div class="num green">${don.mastered}</div>
+        <span class="lbl">已掌握</span>
+      </div>
+      <div class="stat-ov">
+        <div class="ic">📖</div>
+        <div class="num orange">${don.learning}</div>
+        <span class="lbl">学习中</span>
+      </div>
+      <div class="stat-ov">
+        <div class="ic">🗂</div>
+        <div class="num purple">${plans.length}</div>
+        <span class="lbl">背诵计划</span>
+      </div>
+    </div>
+    <div class="stats-grid">
+    <div class="stat-card">
+      <h3>📈 学习趋势</h3>
+      <p class="stat-sub">近 14 天每天的学习与掌握走势</p>
+      <div class="chart-body">${svgLine(d)}</div>
+      <div class="legend"><span><i style="background:var(--blue)"></i>学习次数</span><span><i style="background:var(--green)"></i>认识/掌握</span><span><i style="background:var(--red)"></i>忘记</span></div>
+    </div>
+    <div class="stat-card">
+      <h3>🍩 掌握进度</h3>
+      <p class="stat-sub">词库整体的掌握情况</p>
+      <div class="chart-body"><div class="donut-box">${svgDonut(don)}</div></div>
+      <div class="legend">
+        <span><i style="background:var(--green)"></i>已掌握 ${don.mastered}</span>
+        <span><i style="background:var(--orange)"></i>学习中 ${don.learning}</span>
+        <span><i style="background:#e9e9eb"></i>未开始 ${don.untouched}</span>
+      </div>
+    </div>
+    <div class="stat-card stat-table">
+      <h3>📋 计划进度</h3>
+      <p class="stat-sub">各背诵计划的进度一览</p>
+      <table class="simple">
+        <tr><th>计划</th><th>状态</th><th>开始日期</th><th>每日新词</th><th>总词数</th><th>已学</th><th>已掌握</th><th>进度</th></tr>
+        ${plans.map(p => `<tr>
+          <td><b>${esc(p.name)}</b></td>
+          <td>${p.status === 'active' ? '进行中' : '已暂停'}</td>
+          <td>${esc(p.start_date)}</td>
+          <td>${p.daily_new}</td>
+          <td>${p.total}</td>
+          <td>${p.learned}</td>
+          <td>${p.mastered}</td>
+          <td>${p.total ? Math.round(p.mastered/p.total*100) : 0}%</td>
+        </tr>`).join("")}
+      </table>
+    </div>
+    </div>`;
+  if (!plans.length){
+    const table = box.querySelector(".stat-table table");
+    if (table) table.innerHTML = `<tr><td colspan="8"><div class="empty">还没有背诵计划，去「计划」页新建一个吧</div></td></tr>`;
+  }
+}
+
+function svgLine(d){
+  if (!d.length) return `<div class="empty">还没有学习记录</div>`;
+  const W = 420, H = 180, padL = 30, padB = 24, padT = 12, padR = 8;
+  const max = Math.max(1, ...d.map(x => Math.max(x.study, 1)));
+  const px = i => padL + i * (W - padL - padR) / Math.max(1, d.length - 1);
+  const py = v => H - padB - (v / max) * (H - padT - padB);
+  const line = (key, color) => {
+    const pts = d.map((x, i) => `${px(i).toFixed(1)},${py(x[key] || 0).toFixed(1)}`).join(" ");
+    return `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  };
+  let grid = "";
+  for (let i = 0; i <= 3; i++){
+    const y = padT + i * (H - padT - padB) / 3;
+    grid += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#f0f0f2" stroke-width="1"/>`;
+  }
+  const labels = d.map((x, i) => `<text x="${px(i)}" y="${H-6}" text-anchor="middle" font-size="9" fill="#86868b">${x.date}</text>`).join("");
+  const dots = d.map((x, i) => `<circle cx="${px(i)}" cy="${py(x.study||0)}" r="3" fill="var(--blue)"/>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto;">${grid}${line("study","var(--blue)")}${line("good","var(--green)")}${line("again","var(--red)")}${dots}${labels}</svg>`;
+}
+
+function svgDonut(d){
+  const total = Math.max(1, d.total);
+  const p1 = d.mastered / total, p2 = d.learning / total;
+  const r = 62, c = 2 * Math.PI * r;
+  const seg = (frac, off, color) => {
+    if (frac <= 0) return "";
+    return `<circle r="${r}" cx="90" cy="90" fill="none" stroke="${color}" stroke-width="26" stroke-dasharray="${(frac*c).toFixed(1)} ${(c*(1-frac)).toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 90 90)" stroke-linecap="butt"/>`;
+  };
+  return `<svg viewBox="0 0 180 180" style="width:100%; max-width:220px; height:auto; display:block; margin:0 auto;">
+    ${seg(p1, 0, "var(--green)")}
+    ${seg(p2, -p1*c, "var(--orange)")}
+    ${seg(Math.max(0, 1-p1-p2), -(p1+p2)*c, "#e9e9eb")}
+    <text x="90" y="86" text-anchor="middle" font-size="20" font-weight="700">${Math.round(p1*100)}%</text>
+    <text x="90" y="106" text-anchor="middle" font-size="11" fill="#86868b">已掌握</text>
+  </svg>`;
+}
+
+/* ================= 管理（管理员） ================= */
+async function loadUsers(){
+  const r = await api("/api/admin/users");
+  if (!r.ok){ $("userList").innerHTML = `<div class="empty">无权限查看</div>`; return; }
+  const users = r.body.users || [];
+  $("userList").innerHTML = users.map(u => `
+    <div class="user-row">
+      <span class="u-name">${esc(u.nickname)}</span>
+      <span class="u-role ${u.role === 'admin' ? 'admin' : 'student'}">${u.role === 'admin' ? '管理员' : '学生'}</span>
+      <span class="u-pwd">密码：${esc(u.password_plain || "—")}</span>
+      <span class="u-acts">
+        <button class="mini-btn" onclick="resetPwd('${u.id}')">重置密码</button>
+        ${u.role !== 'admin' ? `<button class="mini-btn" onclick="openGrantBank('${u.id}','${esc(u.nickname)}')">开通词库</button>` : ""}
+        ${u.role !== 'admin' ? `<button class="mini-btn danger" onclick="delUser('${u.id}')">删除</button>` : ""}
+      </span>
+    </div>`).join("");
+}
+function openGrantBank(userId, nick){
+  const templates = BANKS.filter(b => b.template);
+  if (!templates.length){ toast("暂无平台模板词库可开通"); return; }
+  openModal(`
+    <h3>为「${esc(nick)}」开通词库</h3>
+    <p class="note" style="margin-bottom:12px">从平台模板复制整套词到该用户账户（付费用户专用）。</p>
+    <div class="form-row"><label>选择模板词库</label>
+      <select id="gbSource">${templates.map(t => `<option value="${t.id}">${esc(t.name)}（${t.count}词）</option>`).join("")}</select>
+    </div>
+    <div class="form-row"><label>给用户的词库名称</label><input type="text" id="gbName" value="${esc(templates[0].name)}" placeholder="如：2026年秋五年级英语上"></div>
+    <div class="modal-acts">
+      <button class="btn btn-gray" onclick="closeModal()">取消</button>
+      <button class="btn btn-blue" onclick="doGrantBank('${userId}','${esc(nick)}')">开通</button>
+    </div>`);
+}
+async function doGrantBank(userId, nick){
+  const sourceBankId = $("gbSource").value;
+  const bankName = $("gbName").value.trim();
+  if (!sourceBankId || !bankName){ toast("请选择模板并填写词库名称"); return; }
+  const r = await api("/api/vocab/admin/grant", { method: "POST", body: { user_id: userId, source_bank_id: sourceBankId, bank_name: bankName } });
+  if (!r.ok){ toast((r.body && r.body.error) || "开通失败"); return; }
+  closeModal();
+  toast(`已为「${nick}」开通词库：${r.body.count} 词`);
+}
+function openNewUser(){
+  openModal(`
+    <h3>新建账号</h3>
+    <div class="form-row"><label>昵称（孩子/用户名）</label><input type="text" id="nuNick" maxlength="20" placeholder="如：小明"></div>
+    <div class="form-row"><label>密码（至少 6 位）</label><input type="text" id="nuPwd" placeholder="123456"></div>
+    <div class="form-row"><label>角色</label><select id="nuRole"><option value="student">学生</option></select></div>
+    <div class="modal-acts">
+      <button class="btn btn-gray" onclick="closeModal()">取消</button>
+      <button class="btn btn-blue" onclick="createUser()">创建</button>
+    </div>`);
+}
+async function createUser(){
+  const nick = $("nuNick").value.trim();
+  const pwd = $("nuPwd").value;
+  if (!nick || pwd.length < 6){ toast("请填写昵称，密码至少 6 位"); return; }
+  const r = await api("/api/auth/register", { method: "POST", body: { nickname: nick, password: pwd, role: "student" } });
+  if (!r.ok){ toast((r.body && r.body.error) || "创建失败"); return; }
+  closeModal();
+  toast("账号已创建");
+  loadUsers();
+}
+function resetPwd(id){
+  openModal(`
+    <h3>重置密码</h3>
+    <div class="form-row"><label>新密码（至少 6 位）</label><input type="text" id="rpPwd" placeholder="123456"></div>
+    <div class="modal-acts">
+      <button class="btn btn-gray" onclick="closeModal()">取消</button>
+      <button class="btn btn-blue" onclick="doResetPwd('${id}')">重置</button>
+    </div>`);
+}
+async function doResetPwd(id){
+  const pwd = $("rpPwd").value;
+  if (pwd.length < 6){ toast("密码至少 6 位"); return; }
+  const r = await api("/api/admin/users/" + id + "/reset-password", { method: "POST", body: { password: pwd } });
+  if (!r.ok){ toast((r.body && r.body.error) || "重置失败"); return; }
+  closeModal();
+  toast("密码已重置");
+  loadUsers();
+}
+async function delUser(id){
+  if (!confirm("确定删除该账号吗？其所有数据将一并删除。")) return;
+  const r = await api("/api/admin/users/" + id, { method: "DELETE" });
+  if (!r.ok){ toast((r.body && r.body.error) || "删除失败"); return; }
+  toast("已删除账号");
+  loadUsers();
+}
+
+/* ================= 弹窗 ================= */
+function openModal(html){
+  $("modalBox").innerHTML = html;
+  $("modalMask").classList.add("on");
+}
+function closeModal(){ $("modalMask").classList.remove("on"); }
+$("modalMask").addEventListener("click", (e) => { if (e.target === $("modalMask")) closeModal(); });
+
+/* ================= 管理员切换加载 ================= */
+document.querySelectorAll("nav.tabs button").forEach(b => {
+  b.addEventListener("click", () => {
+    if (b.dataset.tab === "study") refreshToday();
+    if (b.dataset.tab === "admin" && SESSION && SESSION.role === "admin") loadUsers();
+    if (b.dataset.tab === "stats") loadStats();
+    if (b.dataset.tab === "bank") { loadBank(); loadTags(); }
+    if (b.dataset.tab === "plans") loadPlans();
+    if (b.dataset.tab === "calendar") loadCalendar();
+  });
+});
+
+/* 首次检查登录态 */
+(async function init(){
+  const r = await api("/api/me");
+  if (r.ok && r.body.loggedIn){
+    SESSION = r.body.profile;
+    $("loginScreen").style.display = "none";
+    $("app").style.display = "block";
+    $("topUser").textContent = "已登录：" + SESSION.nickname;
+    const adminBtn = $("adminTabBtn");
+    if (adminBtn) adminBtn.style.display = SESSION.role === "admin" ? "" : "none";
+    const imp = $("importBtn"), exp = $("exportBtn"), ab = $("addBankBtn");
+    if (imp) imp.style.display = "";
+    if (exp) exp.style.display = "";
+    if (ab) ab.style.display = "";
+    await boot();
+  }
+  // 预热语音列表
+  if ("speechSynthesis" in window) speechSynthesis.getVoices();
+})();
+</script>
+</body>
+</html>
