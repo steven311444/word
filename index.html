@@ -385,10 +385,15 @@ function esc(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace
 function todayCN(){ const d = new Date(); return (d.getMonth()+1) + "月" + d.getDate() + "日"; }
 
 async function api(path, options = {}) {
-  const init = { method: options.method || "GET", credentials: "include", headers: { "content-type": "application/json" } };
+  // 读取类请求不带 content-type，避免跨域预检（OPTIONS）导致点击变慢；
+  // 仅在携带 body（POST/PUT）时设置 JSON 头
+  const init = { method: options.method || "GET", credentials: "include", headers: {} };
   const tok = localStorage.getItem("words_token");
   if (tok) init.headers["x-z-token"] = tok;
-  if (options.body !== undefined) init.body = JSON.stringify(options.body);
+  if (options.body !== undefined) {
+    init.headers["content-type"] = "application/json";
+    init.body = JSON.stringify(options.body);
+  }
   const res = await fetch(API_BASE + path, init);
   let body = null;
   try { body = await res.json(); } catch(e){}
