@@ -377,6 +377,7 @@ let CUR_TAB = "study";
 
 // 学习器状态
 let STUDY = { planId: null, mode: null, queue: [], idx: 0, newFirst: [], reviewFirst: [], stats: { new: 0, review: 0, done: 0 } };
+let TODAY_LOCK = null; // 当天学习名单（首次进入固定，三种模式共用，避免切模式换词）
 let STUDY_PLAN = null; // 兼容保留（不再用于选择计划，全部计划合并推进）
 
 function $(id){ return document.getElementById(id); }
@@ -535,24 +536,31 @@ function renderStudyPlanSelect(){
 async function refreshToday(){
   const r = await api("/api/vocab/today");
   if (!r.ok) return;
+  const date = r.body.date || "";
+  // 同一天且名单已固定：不覆盖，保持三种模式同一批词
+  if (TODAY_LOCK && TODAY_LOCK.date === date && TODAY_LOCK.words.length) return;
+  TODAY_LOCK = {
+    date,
+    newN: r.body.newCount || 0,
+    reviewN: r.body.reviewCount || 0,
+    words: r.body.words || [],
+  };
   const activePlans = PLANS.filter(p => p.status === "active");
-  STUDY.queue = r.body.words || [];
-  STUDY.stats.new = r.body.newCount || 0;
-  STUDY.stats.review = r.body.reviewCount || 0;
+  STUDY.stats.new = TODAY_LOCK.newN;
+  STUDY.stats.review = TODAY_LOCK.reviewN;
   $("todayTitle").textContent = "今日学习 · " + todayCN();
-  $("todayNew").textContent = r.body.newCount || 0;
-  $("todayReview").textContent = r.body.reviewCount || 0;
+  $("todayNew").textContent = TODAY_LOCK.newN;
+  $("todayReview").textContent = TODAY_LOCK.reviewN;
   $("todayMastered").textContent = activePlans.reduce((s, p) => s + (p.mastered || 0), 0);
-  // 若队列变化，重置进行中的学习
-  if (!STUDY.mode) {
-    $("studyStage").innerHTML = `<div class="empty">今日 ${r.body.newCount||0} 个新词 + ${r.body.reviewCount||0} 个复习，选一个模式开始吧</div>`;
-  }
+  $("studyStage").innerHTML = `<div class="empty">今日 ${TODAY_LOCK.newN} 个新词 + ${TODAY_LOCK.reviewN} 个复习，选一个模式开始吧（三种模式都是这一批词）</div>`;
 }
 
 /* ================= 学习器 ================= */
 const MODE_LABEL = { follow: "🔊 跟读", en2cn: "🇬🇧→🇨🇳 看英背中", cn2en: "🇨🇳→🇬🇧 看中背英" };
 
-function speak(text, rate){
+let _ttsAudio = null;
+let _ttsBusy = false;
+function speechFallback(text, rate){
   try {
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "en-US";
@@ -564,13 +572,31 @@ function speak(text, rate){
     speechSynthesis.speak(u);
   } catch(e){}
 }
+function speak(text, rate){
+  // 优先在线 TTS（兼容安卓等无系统英文语音的设备），失败回退浏览器语音
+  try {
+    if (!_ttsAudio){ _ttsAudio = new Audio(); }
+    _ttsAudio.pause();
+    _ttsAudio.src = API_BASE + "/api/tts?q=" + encodeURIComponent(text);
+    _ttsAudio.playbackRate = rate || 0.85;
+    _ttsAudio.onerror = () => speechFallback(text, rate);
+    const p = _ttsAudio.play();
+    if (p && p.catch) p.catch(() => speechFallback(text, rate));
+  } catch(e){ speechFallback(text, rate); }
+}
 const PLAY_SVG = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
 
 function startMode(mode){
-  if (!STUDY.queue.length){ toast("今天没有单词任务，去日期表看看排期吧"); return; }
+  if (!TODAY_LOCK || !TODAY_LOCK.words.length){
+    toast("今天没有单词任务，去日期表看看排期吧");
+    return;
+  }
+  // 三种模式始终使用当天固定的同一批词（可反复练习）
+  STUDY.queue = TODAY_LOCK.words.slice();
   STUDY.mode = mode;
   STUDY.idx = 0;
   STUDY.stats.done = 0;
+  STUDY.finished = false;
   STUDY.failCount = {};
   document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("on", b.dataset.mode === mode));
   renderFlash();
@@ -697,6 +723,7 @@ async function rate(rating, mode){
   STUDY.idx++;
   if (STUDY.idx >= STUDY.queue.length){
     STUDY.queue = [];
+    STUDY.finished = true;
     renderFlash();
     await Promise.all([loadPlans(), loadStats()]);
     return;
