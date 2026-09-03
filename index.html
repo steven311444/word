@@ -1331,15 +1331,16 @@ async function loadUsers(){
     </div>`).join("");
 }
 function openGrantBank(userId, nick){
-  const templates = BANKS.filter(b => b.template);
-  if (!templates.length){ toast("暂无平台模板词库可开通"); return; }
+  // 源词库：平台模板（null 归属）或管理员自己的词库
+  const sources = BANKS.filter(b => b.template || (SESSION && b.owner_id === SESSION.id));
+  if (!sources.length){ toast("暂无可用源词库（平台模板或自己的词库）"); return; }
   openModal(`
     <h3>为「${esc(nick)}」开通词库</h3>
-    <p class="note" style="margin-bottom:12px">从平台模板复制整套词到该用户账户（付费用户专用）。</p>
-    <div class="form-row"><label>选择模板词库</label>
-      <select id="gbSource">${templates.map(t => `<option value="${t.id}">${esc(t.name)}（${t.count}词）</option>`).join("")}</select>
+    <p class="note" style="margin-bottom:12px">从下面的词库复制整套词到该用户账户（对方无需自己导入）。</p>
+    <div class="form-row"><label>选择源词库</label>
+      <select id="gbSource">${sources.map(t => `<option value="${t.id}">${esc(t.name)}${t.template ? "（模板）" : ""}（${t.count}词）</option>`).join("")}</select>
     </div>
-    <div class="form-row"><label>给用户的词库名称</label><input type="text" id="gbName" value="${esc(templates[0].name)}" placeholder="如：2026年秋五年级英语上"></div>
+    <div class="form-row"><label>给用户的词库名称</label><input type="text" id="gbName" value="${esc(sources[0].name)}" placeholder="如：2026年秋五年级英语上"></div>
     <div class="modal-acts">
       <button class="btn btn-gray" onclick="closeModal()">取消</button>
       <button class="btn btn-blue" onclick="doGrantBank('${userId}','${esc(nick)}')">开通</button>
