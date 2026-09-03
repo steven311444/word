@@ -1052,13 +1052,16 @@ async function togglePlan(id, status){
   const r = await api("/api/vocab/plans/" + id, { method: "PUT", body: { status } });
   if (!r.ok){ toast((r.body && r.body.error) || "操作失败"); return; }
   toast(status === "paused" ? "已暂停计划" : "已恢复计划");
+  TODAY_LOCK = null; // 计划结构变化后重新生成今日名单
   await Promise.all([loadPlans(), loadStats()]);
+  refreshToday();
 }
 async function delPlan(id){
   if (!confirm("确定删除这个计划吗？学习记录不会删除，但排期会移除。")) return;
   const r = await api("/api/vocab/plans/" + id, { method: "DELETE" });
   if (!r.ok){ toast((r.body && r.body.error) || "删除失败"); return; }
   toast("已删除计划");
+  TODAY_LOCK = null; // 删除计划后重新生成今日名单
   await Promise.all([loadPlans(), loadStats(), refreshToday()]);
 }
 
@@ -1101,7 +1104,9 @@ async function createPlan(){
   if (!r.ok){ toast((r.body && r.body.error) || "创建失败"); return; }
   closeModal();
   toast(`计划已生成：${r.body.count} 个单词`);
+  TODAY_LOCK = null; // 新计划建立后重新生成今日名单
   await Promise.all([loadPlans(), loadStats()]);
+  refreshToday();
 }
 
 /* ================= 统计 ================= */
