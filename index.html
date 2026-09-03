@@ -385,6 +385,8 @@ function todayCN(){ const d = new Date(); return (d.getMonth()+1) + "月" + d.ge
 
 async function api(path, options = {}) {
   const init = { method: options.method || "GET", credentials: "include", headers: { "content-type": "application/json" } };
+  const tok = localStorage.getItem("words_token");
+  if (tok) init.headers["x-z-token"] = tok;
   if (options.body !== undefined) init.body = JSON.stringify(options.body);
   const res = await fetch(API_BASE + path, init);
   let body = null;
@@ -411,6 +413,7 @@ async function doLogin(){
   msg.textContent = "登录中…";
   const r = await api("/api/auth/login", { method: "POST", body: { nickname: nick, password: pwd } });
   if (!r.ok){ msg.textContent = (r.body && r.body.error) || "登录失败，请稍后重试"; return; }
+  if (r.body && r.body.token) localStorage.setItem("words_token", r.body.token);
   enterApp(r.body.profile);
 }
 const TRIAL_NICK = "试用";
@@ -421,6 +424,7 @@ async function trialLogin(){
   try {
     const r = await api("/api/auth/login", { method: "POST", body: { nickname: TRIAL_NICK, password: TRIAL_PWD } });
     if (!r.ok){ if (msg) msg.textContent = "试用账号暂不可用，请联系管理员"; return; }
+    if (r.body && r.body.token) localStorage.setItem("words_token", r.body.token);
     enterApp(r.body.profile);
   } catch (e) {
     if (msg) msg.textContent = "网络异常，请检查网络后重试";
@@ -442,6 +446,7 @@ function enterApp(profile){
 }
 async function doLogout(){
   try { await api("/api/auth/logout", { method: "POST" }); } catch(e){}
+  localStorage.removeItem("words_token");
   location.reload();
 }
 
@@ -1388,6 +1393,11 @@ document.querySelectorAll("nav.tabs button").forEach(b => {
 (async function init(){
   const r = await api("/api/me");
   if (r.ok && r.body.loggedIn){
+    // 无本地 token（旧 cookie 会话）：登出并回到登录页，让用户重新登录以获取 token
+    if (!localStorage.getItem("words_token")){
+      try { await api("/api/auth/logout", { method: "POST" }); } catch(e){}
+      return;
+    }
     SESSION = r.body.profile;
     $("loginScreen").style.display = "none";
     $("app").style.display = "block";
