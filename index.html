@@ -569,6 +569,7 @@ const MODE_LABEL = { follow: "🔊 跟读", en2cn: "🇬🇧→🇨🇳 看英�
 
 let _ttsAudio = null;
 let _ttsBusy = false;
+const phonBusy = new Set();
 function speechFallback(text, rate){
   try {
     const u = new SpeechSynthesisUtterance(text);
@@ -592,6 +593,35 @@ function speak(text, rate){
     const p = _ttsAudio.play();
     if (p && p.catch) p.catch(() => speechFallback(text, rate));
   } catch(e){ speechFallback(text, rate); }
+}
+
+// 音标按需补全：无音标的词展示时调一次 /api/phon，成功入库并刷新显示
+function ensurePhon(w){
+  if (!w || w.phonetics || phonBusy.has(String(w.word).toLowerCase())) return;
+  phonBusy.add(String(w.word).toLowerCase());
+  fetch(API_BASE + "/api/phon?q=" + encodeURIComponent(w.word))
+    .then(r => r.ok ? r.json() : {})
+    .then(b => {
+      if (b && b.ipa){
+        w.phonetics = b.ipa;
+        updateVisiblePhon(w);
+      }
+    })
+    .catch(() => {})
+    .finally(() => phonBusy.delete(String(w.word).toLowerCase()));
+}
+function updateVisiblePhon(w){
+  const cur = curWord && curWord();
+  if (cur && cur.id === w.id && STUDY.mode){
+    if (STUDY.mode === "follow") renderFlash();
+    else if (STUDY.mode === "en2cn"){
+      const el = $("fcEn2cnPhon");
+      if (el) el.textContent = w.phonetics;
+    }
+  }
+  document.querySelectorAll('[data-ph]').forEach(el => {
+    if (el.dataset.ph === w.id && !el.textContent) el.textContent = w.phonetics;
+  });
 }
 const PLAY_SVG = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
 
@@ -684,6 +714,7 @@ function renderFlash(){
       <div class="study-nav"><button class="btn btn-gray" onclick="goPrev()">‹ 上一题</button><button class="btn btn-gray" onclick="goNext()">下一题 ›</button></div>`;
     setTimeout(() => $("spellInput").focus(), 60);
   }
+  setTimeout(() => ensurePhon(w), 180);
 }
 
 function goPrev(){
@@ -802,7 +833,7 @@ function renderBankList(){
     return `<div class="word-row">
       <button class="play" style="width:34px; height:34px; margin:0;" onclick="speak('${esc(String(w.word).replace(/'/g,"\\'"))}')">${PLAY_SVG}</button>
       <span class="w-word">${esc(w.word)}</span>
-      ${w.phonetics ? `<span class="phon" style="margin-left:0;">${esc(w.phonetics)}</span>` : ""}
+      ${w.phonetics ? `<span class="phon" style="margin-left:0;">${esc(w.phonetics)}</span>` : `<span class="phon ph-empty" data-ph="${esc(w.id)}"></span>`}
       <span class="w-pos">${esc(w.pos)}</span>
       <span class="w-mean">${esc(w.mean)}</span>
       <span class="w-tags">${unitTags.map(t => `<span class="pill">${esc(fmtUnit(t))}</span>`).join("")}</span>
@@ -811,6 +842,7 @@ function renderBankList(){
       ${canManage ? `<span class="u-acts"><button class="mini-btn" onclick="openEditWord('${w.id}')">编辑</button><button class="mini-btn danger" onclick="delWord('${w.id}')">删除</button></span>` : ""}
     </div>`;
   }).join("");
+  list.filter(x => !x.phonetics).forEach(x => setTimeout(() => ensurePhon(x), 200));
 }
 
 // 词库状态筛选（认识/不熟/忘了/掌握/全部）
