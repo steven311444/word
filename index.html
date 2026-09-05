@@ -82,6 +82,8 @@ section.tab-panel.on{display:block;}
 .flashcard .fc-word{font-size:44px; font-weight:700; letter-spacing:.5px; word-break:break-word;}
 .flashcard .fc-pos{color:var(--muted); font-size:15px; margin-top:4px;}
 .flashcard .fc-mean{font-size:26px; font-weight:600; margin-top:12px;}
+.phon{color:var(--muted); font-size:14px; font-family:ui-monospace,Menlo,monospace; margin-left:8px;}
+.fc-phon{color:var(--muted); font-size:18px; font-family:ui-monospace,Menlo,monospace; margin-top:8px;}
 .fc-word.hidden{filter:blur(8px); pointer-events:none;}
 .fc-spell-input{margin-top:18px; width:100%; max-width:340px; border:2px solid var(--line); border-radius:14px; padding:14px 18px; font-size:22px; text-align:center; letter-spacing:1px; background:#fafafa;}
 .fc-spell-input:focus{outline:none; border-color:var(--blue); background:#fff; box-shadow:0 0 0 4px rgba(0,113,227,.12);}
@@ -94,6 +96,8 @@ section.tab-panel.on{display:block;}
 .play:active{transform:scale(.94);}
 .play svg{width:22px; height:22px;}
 .rate-btns{display:flex; justify-content:center; gap:8px; margin-top:18px; flex-wrap:wrap;}
+.study-nav{display:flex; justify-content:center; gap:10px; margin-top:12px;}
+.study-nav .btn{min-width:96px;}
 .btn{border:none; border-radius:var(--radius-pill); padding:10px 20px; font-size:14px; font-weight:600; margin:4px; transition:opacity .15s, transform .15s;}
 .btn:active{transform:scale(.97);}
 .btn:disabled{opacity:.35; cursor:default;}
@@ -625,11 +629,13 @@ function renderFlash(){
   }
   const prog = (STUDY.idx + 1) + " / " + STUDY.queue.length;
   const kind = w.kind === "new" ? "🆕 新词" : "🔁 复习";
+  const ph = (x) => x && x.phonetics ? `<div class="fc-phon">${esc(x.phonetics)}</div>` : "";
   if (STUDY.mode === "follow"){
     stage.innerHTML = `
       <div class="study-prog">${kind} · ${prog}</div>
       <div class="flashcard" onclick="speak('${esc(String(w.word).replace(/'/g,"\\'"))}')">
         <div class="fc-word">${esc(w.word)}</div>
+        ${ph(w)}
         <div class="fc-pos">${esc(w.pos)}</div>
         <div class="fc-mean">${esc(w.mean)}</div>
       </div>
@@ -639,7 +645,8 @@ function renderFlash(){
         <button class="btn btn-orange" onclick="rate('hard','follow')">不熟 😐</button>
         <button class="btn btn-green" onclick="rate('good','follow')">认识 ✅</button>
         <button class="btn btn-blue" onclick="rate('easy','follow')">太简单 ⚡</button>
-      </div>`;
+      </div>
+      <div class="study-nav"><button class="btn btn-gray" onclick="goPrev()">‹ 上一题</button><button class="btn btn-gray" onclick="goNext()">下一题 ›</button></div>`;
     setTimeout(() => speak(w.word), 180);
   } else if (STUDY.mode === "en2cn"){
     stage.innerHTML = `
@@ -648,6 +655,7 @@ function renderFlash(){
         <div class="fc-word">${esc(w.word)}</div>
         <div class="fc-pos">${esc(w.pos)}</div>
         <div class="fc-mean" id="fcEn2cnMean" style="display:none">${esc(w.mean)}</div>
+        <div class="fc-phon" id="fcEn2cnPhon" style="display:none">${esc(w.phonetics || "")}</div>
       </div>
       <button class="play" onclick="speak('${esc(String(w.word).replace(/'/g,"\\'"))}')">${PLAY_SVG}</button>
       <div class="rate-btns" id="en2cnRates" style="opacity:.4; pointer-events:none;">
@@ -656,6 +664,10 @@ function renderFlash(){
         <button class="btn btn-green" onclick="rate('good','en2cn')">认识 ✅</button>
         <button class="btn btn-blue" onclick="rate('easy','en2cn')">太简单 ⚡</button>
       </div>`;
+    const nav = document.createElement("div");
+    nav.className = "study-nav";
+    nav.innerHTML = `<button class="btn btn-gray" onclick="goPrev()">‹ 上一题</button><button class="btn btn-gray" onclick="goNext()">下一题 ›</button>`;
+    stage.querySelector(".rate-btns").after(nav);
   } else if (STUDY.mode === "cn2en"){
     stage.innerHTML = `
       <div class="study-prog">${kind} · ${prog} · 看中文，输入英文拼写</div>
@@ -668,17 +680,27 @@ function renderFlash(){
       </div>
       <div class="rate-btns">
         <button class="btn btn-blue" onclick="checkSpell()">✓ 检查</button>
-      </div>`;
+      </div>
+      <div class="study-nav"><button class="btn btn-gray" onclick="goPrev()">‹ 上一题</button><button class="btn btn-gray" onclick="goNext()">下一题 ›</button></div>`;
     setTimeout(() => $("spellInput").focus(), 60);
   }
 }
 
+function goPrev(){
+  if (STUDY.queue.length && STUDY.idx > 0){ STUDY.idx--; renderFlash(); }
+}
+function goNext(){
+  if (STUDY.queue.length && STUDY.idx < STUDY.queue.length - 1){ STUDY.idx++; renderFlash(); }
+}
+
 function flipEn2cn(){
   const mean = $("fcEn2cnMean");
+  const phon = $("fcEn2cnPhon");
   const rates = $("en2cnRates");
   if (!mean || !rates) return;
   if (mean.style.display === "none"){
     mean.style.display = "block";
+    if (phon && phon.textContent.trim()) phon.style.display = "block";
     rates.style.opacity = "1";
     rates.style.pointerEvents = "auto";
   }
@@ -696,13 +718,14 @@ function checkSpell(){
   input.disabled = true;
   const res = $("spellResult");
   const ansEl = $("spellAnswer");
+  const phTxt = w.phonetics ? `<div class="fc-phon">${esc(w.phonetics)}</div>` : "";
   speak(w.word);
   const buttons = document.querySelector("#studyStage .rate-btns");
   if (ok) {
     // 拼写正确 → 自动打"认识"
     res.className = "fc-result ok";
     res.textContent = "✓ 完全正确（已标为认识）";
-    ansEl.innerHTML = "";
+    ansEl.innerHTML = phTxt;
     buttons.innerHTML = `<button class="btn btn-green">自动评分中…</button>`;
     setTimeout(() => rate("good", "cn2en"), 600);
   } else {
@@ -712,7 +735,7 @@ function checkSpell(){
     const rating = n >= 2 ? "again" : "hard";
     res.className = "fc-result no";
     res.textContent = n >= 2 ? `✗ 这是今天第 ${n} 次拼错（已标为忘了）` : `✗ 不对哦（已标为不熟，第 ${n} 次）`;
-    ansEl.innerHTML = `正确答案：<b>${esc(w.word)}</b>（${esc(w.pos)}）`;
+    ansEl.innerHTML = `正确答案：<b>${esc(w.word)}</b>（${esc(w.pos)}）${phTxt}`;
     buttons.innerHTML = `<button class="btn btn-orange">自动评分中…</button>`;
     setTimeout(() => rate(rating, "cn2en"), 900);
   }
@@ -727,7 +750,6 @@ async function rate(rating, mode){
   if (rating === "again" || rating === "hard") w.kind = "again";
   STUDY.idx++;
   if (STUDY.idx >= STUDY.queue.length){
-    STUDY.queue = [];
     STUDY.finished = true;
     renderFlash();
     await Promise.all([loadPlans(), loadStats()]);
@@ -780,6 +802,7 @@ function renderBankList(){
     return `<div class="word-row">
       <button class="play" style="width:34px; height:34px; margin:0;" onclick="speak('${esc(String(w.word).replace(/'/g,"\\'"))}')">${PLAY_SVG}</button>
       <span class="w-word">${esc(w.word)}</span>
+      ${w.phonetics ? `<span class="phon" style="margin-left:0;">${esc(w.phonetics)}</span>` : ""}
       <span class="w-pos">${esc(w.pos)}</span>
       <span class="w-mean">${esc(w.mean)}</span>
       <span class="w-tags">${unitTags.map(t => `<span class="pill">${esc(fmtUnit(t))}</span>`).join("")}</span>
